@@ -808,7 +808,7 @@ function renderBrowseCard(){
         <div class="jp-text">${v.jp_ruby}</div>
         <div class="speak-btns">
           <button class="speak-btn" onclick="speak(this,partVerses(bPart)[bIdx].kr,'ko-KR')">🔊 한국어</button>
-          <button class="speak-btn" onclick="speak(this,partVerses(bPart)[bIdx].jp_raw,'ja-JP')">🔊 日本語</button>
+          <button class="speak-btn" onclick="speak(this,rubyToYomi(partVerses(bPart)[bIdx].jp_ruby),'ja-JP')">🔊 日本語</button>
         </div>
       </div>
     </div>`;
@@ -1097,6 +1097,30 @@ function setDiff(d){
 // ===== SPEECH =====
 let currentUtterance=null;
 
+// rubyタグからふりがなを抽出して読み上げ用テキストに変換
+// 例: <ruby>神<rt>かみ</rt></ruby> → かみ
+function rubyToYomi(html){
+  // rubyタグのふりがなを使って漢字を置換
+  let text = html
+    .replace(/<ruby>([^<]*)<rt>([^<]*)<\/rt><\/ruby>/g, '$2')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // 助詞「は」→「わ」、「へ」→「え」、「を」→「お」に変換
+  // 単語の後に続く助詞のパターン
+  // 助詞「は」のみ「わ」に変換
+  // 助詞「は」の条件: 前後がスペースまたは文末記号で囲まれた単独の「は」
+  // 例:「わたしは かみを」→ 「わたしわ かみお」
+  // 単語内の「は」（はんこう、はいたつ等）は変換しない
+  text = text
+    .replace(/(^| )は( |$)/g, '$1わ$2')   // 単独の「は」のみ変換
+    .replace(/(^| )へ( |$)/g, '$1え$2')   // 単独の「へ」のみ変換
+    .replace(/ を /g, ' お ');             // 単独の「を」のみ変換
+
+  return text;
+}
+
 function speak(btn, text, lang){
   if(!window.speechSynthesis){ alert('このブラウザは音声読み上げに対応していません'); return; }
   // 再生中なら停止
@@ -1127,7 +1151,7 @@ function speakQuiz(btn, l){
   const verses=partVerses(qPart);
   const v=verses[qIdx];
   if(!v) return;
-  const text=l==='kr'?v.kr:v.jp_raw;
+  const text=l==='kr'?v.kr:rubyToYomi(v.jp_ruby);
   const lang=l==='kr'?'ko-KR':'ja-JP';
   speak(btn, text, lang);
 }
